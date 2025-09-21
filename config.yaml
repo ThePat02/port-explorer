@@ -1,5 +1,5 @@
-language: "de"
-ip: "192.168.0.234"
+language: "en"
+ip: "127.0.0.1"
 start_port: 1
-end_port: 1000
-max_threads: 100
+end_port: 100
+max_threads: 50

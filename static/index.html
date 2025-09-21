@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port Explorer - GUI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            min-height: 500px;
+        }
+
+        .config-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .results-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .results-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            margin-top: 1rem;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.2s ease;
+        }
+
+        .result-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .port-number {
+            font-weight: 600;
+            color: #495057;
+            background: #e3f2fd;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .service-name {
+            color: #28a745;
+            font-weight: 500;
+        }
+
+        .status-message {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .scan-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .info-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+
+        .info-card h4 {
+            color: #495057;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .info-card .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4facfe;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .container {
+                margin: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Port Explorer</h1>
+            <p>Advanced Network Port Scanner with Real-time Results</p>
+        </div>
+
+        <div class="main-content">
+            <div class="config-panel">
+                <h2>Scan Configuration</h2>
+                <form id="scanForm">
+                    <div class="form-group">
+                        <label for="ip">Target IP Address:</label>
+                        <input type="text" id="ip" name="ip" value="127.0.0.1" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="startPort">Start Port:</label>
+                        <input type="number" id="startPort" name="startPort" value="1" min="1" max="65535" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="endPort">End Port:</label>
+                        <input type="number" id="endPort" name="endPort" value="1000" min="1" max="65535" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxThreads">Max Threads:</label>
+                        <input type="number" id="maxThreads" name="maxThreads" value="100" min="1" max="1000" required>
+                    </div>
+                    
+                    <button type="submit" class="btn" id="startBtn">Start Scan</button>
+                    <button type="button" class="btn" id="stopBtn" style="display:none; background: #dc3545;" onclick="stopScan()">Stop Scan</button>
+                </form>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                        <div class="progress-text" id="progressText">0%</div>
+                    </div>
+                </div>
+
+                <div class="status-message" id="statusMessage"></div>
+            </div>
+
+            <div class="results-panel">
+                <h2>Scan Results</h2>
+                
+                <div class="scan-info" id="scanInfo" style="display:none;">
+                    <div class="info-card">
+                        <h4>Open Ports</h4>
+                        <div class="value" id="openPortsCount">0</div>
+                    </div>
+                    <div class="info-card">
+                        <h4>Duration</h4>
+                        <div class="value" id="scanDuration">-</div>
+                    </div>
+                    <div class="info-card">
+                        <h4>Progress</h4>
+                        <div class="value" id="scanProgress">0%</div>
+                    </div>
+                </div>
+
+                <div class="results-list" id="resultsList">
+                    <p style="text-align: center; color: #6c757d; margin: 2rem 0;">
+                        Configure your scan parameters and click "Start Scan" to begin.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentScanId = null;
+        let websocket = null;
+        let scanActive = false;
+
+        document.getElementById('scanForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (scanActive) {
+                return;
+            }
+
+            const formData = new FormData(e.target);
+            const scanRequest = {
+                ip: formData.get('ip'),
+                start_port: parseInt(formData.get('startPort')),
+                end_port: parseInt(formData.get('endPort')),
+                max_threads: parseInt(formData.get('maxThreads'))
+            };
+
+            try {
+                showStatus('Starting scan...', 'info');
+                setUIState(true);
+                clearResults();
+                
+                const response = await fetch('/api/scan/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(scanRequest)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentScanId = result.scan_id;
+                    connectWebSocket();
+                    showStatus(`Scan started (ID: ${currentScanId})`, 'success');
+                } else {
+                    showStatus(`Error: ${result.message}`, 'error');
+                    setUIState(false);
+                }
+            } catch (error) {
+                showStatus(`Network error: ${error.message}`, 'error');
+                setUIState(false);
+            }
+        });
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = () => {
+                websocket.send(`subscribe:${currentScanId}`);
+                console.log('WebSocket connected');
+            };
+            
+            websocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.scan_id && data.current !== undefined) {
+                        // Progress update
+                        updateProgress(data.current, data.total, data.percentage);
+                    } else if (data.scan_id && data.open_ports !== undefined) {
+                        // Final results
+                        displayResults(data);
+                        if (data.completed) {
+                            completeScan(data);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                showStatus('Connection error occurred', 'error');
+            };
+            
+            websocket.onclose = () => {
+                console.log('WebSocket disconnected');
+                if (scanActive) {
+                    showStatus('Connection lost', 'error');
+                    setUIState(false);
+                }
+            };
+        }
+
+        function updateProgress(current, total, percentage) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const scanProgress = document.getElementById('scanProgress');
+            
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `${Math.round(percentage)}% (${current}/${total})`;
+            scanProgress.textContent = `${Math.round(percentage)}%`;
+            
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('scanInfo').style.display = 'grid';
+        }
+
+        function displayResults(data) {
+            const resultsList = document.getElementById('resultsList');
+            const openPortsCount = document.getElementById('openPortsCount');
+            const scanDuration = document.getElementById('scanDuration');
+            
+            openPortsCount.textContent = data.open_ports.length;
+            if (data.duration) {
+                scanDuration.textContent = data.duration;
+            }
+            
+            if (data.open_ports.length === 0) {
+                resultsList.innerHTML = '<p style="text-align: center; color: #6c757d; margin: 2rem 0;">No open ports found.</p>';
+                return;
+            }
+            
+            resultsList.innerHTML = data.open_ports.map(port => `
+                <div class="result-item">
+                    <div class="port-number">Port ${port.port}</div>
+                    <div class="service-name">${port.service || 'Unknown Service'}</div>
+                </div>
+            `).join('');
+        }
+
+        function completeScan(data) {
+            setUIState(false);
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            
+            const message = data.open_ports.length > 0 
+                ? `Scan completed! Found ${data.open_ports.length} open port(s) in ${data.duration}`
+                : `Scan completed in ${data.duration}. No open ports found.`;
+            
+            showStatus(message, 'success');
+        }
+
+        function stopScan() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            setUIState(false);
+            showStatus('Scan stopped by user', 'info');
+        }
+
+        function setUIState(scanning) {
+            scanActive = scanning;
+            document.getElementById('startBtn').style.display = scanning ? 'none' : 'inline-block';
+            document.getElementById('stopBtn').style.display = scanning ? 'inline-block' : 'none';
+            document.getElementById('startBtn').disabled = scanning;
+            
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => input.disabled = scanning);
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('resultsList').innerHTML = '<p style="text-align: center; color: #6c757d; margin: 2rem 0;">Scanning...</p>';
+            document.getElementById('openPortsCount').textContent = '0';
+            document.getElementById('scanDuration').textContent = '-';
+            document.getElementById('scanProgress').textContent = '0%';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+        }
+
+        // Auto-resize the results list based on window height
+        function resizeResultsList() {
+            const resultsList = document.getElementById('resultsList');
+            const windowHeight = window.innerHeight;
+            const maxHeight = Math.max(300, windowHeight - 600);
+            resultsList.style.maxHeight = `${maxHeight}px`;
+        }
+
+        window.addEventListener('resize', resizeResultsList);
+        document.addEventListener('DOMContentLoaded', resizeResultsList);
+    </script>
+</body>
+</html>
