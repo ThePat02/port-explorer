@@ -4,6 +4,7 @@ mod config_test;
 mod error;
 #[cfg(test)]
 mod error_test;
+mod gui;
 mod localisator;
 #[cfg(test)]
 mod localisator_test;
@@ -17,10 +18,10 @@ use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::blocking::Client;
 use reqwest::header::USER_AGENT;
 use signatures::{identify_service, load_signatures, Signature};
+use std::env;
 use std::io::Write;
 use std::net::{IpAddr, TcpStream};
 use std::sync::Arc;
-use threadpool::ThreadPool;
 
 /// Format a duration into a human-readable string.
 ///
@@ -107,19 +108,53 @@ fn scan_ports_parallel(
     max_threads: usize,
     pb: &ProgressBar,
 ) -> Result<Vec<(u16, Option<String>)>, ScanError> {
-    let pool = ThreadPool::new(max_threads);
+    let pb = pb.clone();
+    scan_ports_parallel_with_callback(
+        ip,
+        ports,
+        signatures,
+        max_threads,
+        Box::new(move |_| {
+            pb.inc(1);
+        }),
+    )
+}
+
+/// Scan multiple ports in parallel using a thread pool with a custom progress callback.
+///
+/// # Arguments
+/// * `ip` - An Arc-wrapped IpAddr to scan.
+/// * `ports` - A vector of port numbers to scan.
+/// * `signatures` - An Arc-wrapped vector of Signature for service identification.
+/// * `max_threads` - The maximum number of threads to use.
+/// * `progress_callback` - A callback function called for each completed port scan.
+///
+/// # Returns
+/// * `Ok(Vec<(u16, Option<String>)>)` - A vector of open ports and their identified services.
+/// * `Err(ScanError)` - If an error occurs during scanning.
+///
+pub fn scan_ports_parallel_with_callback(
+    ip: Arc<IpAddr>,
+    ports: Vec<u16>,
+    signatures: Arc<Vec<Signature>>,
+    max_threads: usize,
+    progress_callback: Box<dyn Fn(u16) + Send + Sync>,
+) -> Result<Vec<(u16, Option<String>)>, ScanError> {
+    let pool = threadpool::ThreadPool::new(max_threads);
     let open_ports = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let progress = Arc::new(pb.clone());
+    let progress_callback = Arc::new(progress_callback);
+    
     for port in ports {
         let ip = Arc::clone(&ip);
         let signatures = Arc::clone(&signatures);
         let open_ports = Arc::clone(&open_ports);
-        let progress = Arc::clone(&progress);
+        let progress_callback = Arc::clone(&progress_callback);
+        
         pool.execute(move || {
             if let Some(res) = scan_port(ip, port, signatures) {
                 open_ports.lock().unwrap().push(res);
             }
-            progress.inc(1);
+            progress_callback(port);
         });
     }
     pool.join();
@@ -130,7 +165,30 @@ fn scan_ports_parallel(
 
 /// The main entry point of the application.
 ///
-fn main() {
+#[tokio::main]
+async fn main() {
+    let args: Vec<String> = env::args().collect();
+    
+    // Check if GUI mode is requested
+    if args.len() > 1 && args[1] == "--gui" {
+        let port = if args.len() > 2 {
+            args[2].parse().unwrap_or(3030)
+        } else {
+            3030
+        };
+        
+        if let Err(e) = gui::start_gui_server(port).await {
+            eprintln!("Failed to start GUI server: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+    
+    // Run in CLI mode (existing functionality)
+    run_cli_mode();
+}
+
+fn run_cli_mode() {
     let scan_start = std::time::Instant::now();
     let config_path = "config.yaml";
     let config = match config::read_config(config_path) {
@@ -183,6 +241,12 @@ fn main() {
     };
     let scan_duration = scan_start.elapsed();
     let scan_duration_str = format_duration(scan_duration);
+    
+    // Ensure logs directory exists
+    if let Err(e) = std::fs::create_dir_all("logs") {
+        eprintln!("Failed to create logs directory: {}", e);
+    }
+    
     let header = format!(
         "{} {}\n{} {}-{}\n{} {}\n{} {}\n",
         localisator::get("scan_started"),
